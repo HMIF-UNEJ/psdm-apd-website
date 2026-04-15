@@ -3,6 +3,10 @@ export function canManageRoles(role: string) {
   return role === "ADMIN" || role === "BPI" || role === "KADIV";
 }
 
+export function isSuperAdmin(role: string) {
+  return role === "ADMIN" || role === "BPI";
+}
+
 export function canViewResults(role: string) {
   return role === "ADMIN" || role === "BPI" || role === "KADIV";
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { IconBuildingCommunity, IconCalendarEvent, IconCalendarStats, IconChartBar, IconDashboard, IconFolder, IconInnerShadowTop, IconListCheck, IconUsers } from "@tabler/icons-react";
+import { IconBuildingCommunity, IconCalendarEvent, IconCalendarStats, IconChartBar, IconDashboard, IconFolder, IconInnerShadowTop, IconListCheck, IconTrophy, IconUsers } from "@tabler/icons-react";
 
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
@@ -49,6 +49,11 @@ const navMain = [
     url: "/dashboard/results",
     icon: IconChartBar,
   },
+  {
+    title: "Ranking Bulanan",
+    url: "/dashboard/monthly-rank",
+    icon: IconTrophy,
+  },
 ];
 
 type SidebarUser = {
@@ -72,7 +77,7 @@ export function AppSidebar({ user, ...props }: React.ComponentProps<typeof Sideb
             <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:p-1.5">
               <a href="#">
                 <IconInnerShadowTop className="size-5" />
-                <span className="text-base font-semibold">Acme Inc.</span>
+                <span className="text-base font-semibold">Website Penilaian HMIF</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>

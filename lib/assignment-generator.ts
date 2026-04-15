@@ -1,12 +1,13 @@
 import { Prisma, EventType } from "@prisma/client";
 
-// Generate evaluation assignments for an event based on role rules.
+
 export async function generateAssignmentsForEvent(tx: Prisma.TransactionClient, event: { id: string; type: EventType; periodId: string; prokerId: string | null }) {
   if (event.type === "PERIODIC") {
-    await generatePeriodicAssignments(tx, event.id, event.periodId);
+    return await generatePeriodicAssignments(tx, event.id, event.periodId);
   } else if (event.type === "PROKER" && event.prokerId) {
-    await generateProkerAssignments(tx, event.id, event.prokerId, event.periodId);
+    return await generateProkerAssignments(tx, event.id, event.prokerId, event.periodId);
   }
+  return 0;
 }
 
 async function generatePeriodicAssignments(tx: Prisma.TransactionClient, eventId: string, periodId: string) {
@@ -43,6 +44,9 @@ async function generatePeriodicAssignments(tx: Prisma.TransactionClient, eventId
   if (pairs.length > 0) {
     await tx.evaluation.createMany({ data: pairs, skipDuplicates: true });
   }
+
+  console.log(`[Assignment Generator] PERIODIC event ${eventId}: ${users.length} users → ${pairs.length} assignments`);
+  return pairs.length;
 }
 
 async function generateProkerAssignments(tx: Prisma.TransactionClient, eventId: string, prokerId: string, periodId: string) {
@@ -51,7 +55,22 @@ async function generateProkerAssignments(tx: Prisma.TransactionClient, eventId: 
     include: { user: true },
   });
 
-  const activeUsers = panitia.filter((p) => p.user && p.user.isActive && p.user.periodId === periodId).map((p) => p.user);
+  console.log(`[Assignment Generator] PROKER event ${eventId}: Found ${panitia.length} total panitia for proker ${prokerId}`);
+
+  const activeUsers = panitia.filter((p) => p.user && p.user.isActive).map((p) => p.user);
+
+  console.log(`[Assignment Generator] PROKER event ${eventId}: ${activeUsers.length} active users after filtering`);
+  if (activeUsers.length > 0) {
+    console.log(`[Assignment Generator] Active user IDs: ${activeUsers.map((u) => u.id).join(", ")}`);
+  }
+
+  // Validate minimum panitia — need at least 2 to form evaluation pairs
+  if (activeUsers.length < 2) {
+    throw new Error(
+      `Gagal membuat assignment: Proker ini hanya memiliki ${activeUsers.length} panitia aktif. ` +
+      `Minimal 2 panitia aktif diperlukan untuk membuat pasangan evaluasi.`
+    );
+  }
 
   const pairs: { evaluatorId: string; evaluateeId: string; eventId: string }[] = [];
   for (const eva of activeUsers) {
@@ -65,4 +84,8 @@ async function generateProkerAssignments(tx: Prisma.TransactionClient, eventId: 
   if (pairs.length > 0) {
     await tx.evaluation.createMany({ data: pairs, skipDuplicates: true });
   }
+
+  console.log(`[Assignment Generator] PROKER event ${eventId}: Created ${pairs.length} assignment pairs`);
+  return pairs.length;
 }
+

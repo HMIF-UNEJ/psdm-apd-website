@@ -8,6 +8,7 @@ import { Prisma } from "@prisma/client";
 import { Info, Pencil, Trash2 } from "lucide-react";
 
 import { ConfirmForm } from "@/components/confirm-form";
+import { SingleSendButton, BulkSendButton } from "@/components/send-credential-buttons";
 import { SidebarShell } from "@/components/sidebar-shell";
 import { SiteHeader } from "@/components/site-header";
 import { SuccessAlert } from "@/components/success-alert";
@@ -50,7 +51,7 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
       role: String(formData.get("role") ?? ""),
       periodId: String(formData.get("periodId") ?? ""),
       divisionId: String(formData.get("divisionId") ?? ""),
-      password: String(formData.get("password") ?? ""),
+      password: require("crypto").randomUUID().slice(0, 16),
       isActive: formData.get("isActive") === "on",
     };
 
@@ -86,7 +87,7 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
       role: String(formData.get("role") ?? ""),
       periodId: String(formData.get("periodId") ?? ""),
       divisionId: String(formData.get("divisionId") ?? ""),
-      password: String(formData.get("password") ?? ""),
+      password: "",
       isActive: formData.get("isActive") === "on",
     };
 
@@ -163,73 +164,72 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
               <h1 className="text-xl font-semibold">User</h1>
               <p className="text-muted-foreground text-sm">Kelola akun, role, dan divisi.</p>
             </div>
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button>Tambah User</Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="sm:max-w-md">
-                <SheetHeader>
-                  <SheetTitle>Tambah User</SheetTitle>
-                  <SheetDescription>Masukkan data user baru.</SheetDescription>
-                </SheetHeader>
-                <form action={createUser} className="grid gap-3 p-4 pt-0">
-                  <label className="text-sm font-medium text-foreground">
-                    Nama
-                    <Input name="name" placeholder="Nama lengkap" required className="mt-1" />
-                  </label>
-                  <label className="text-sm font-medium text-foreground">
-                    NIM
-                    <Input name="nim" placeholder="0001" required className="mt-1" />
-                  </label>
-                  <label className="text-sm font-medium text-foreground">
-                    Email
-                    <Input name="email" type="email" placeholder="opsional" className="mt-1" />
-                  </label>
-                  <label className="text-sm font-medium text-foreground">
-                    Role
-                    <select name="role" className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm">
-                      {roles.map((role) => (
-                        <option key={role.value} value={role.value}>
-                          {role.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="text-sm font-medium text-foreground">
-                    Periode
-                    <select name="periodId" className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm">
-                      {periods.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="text-sm font-medium text-foreground">
-                    Divisi
-                    <select name="divisionId" className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm">
-                      <option value="">(Tanpa divisi)</option>
-                      {divisions.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="text-sm font-medium text-foreground">
-                    Password
-                    <Input name="password" type="password" placeholder="min 6 karakter" required className="mt-1" />
-                  </label>
-                  <label className="mt-2 flex items-center gap-2 text-sm text-foreground">
-                    <input name="isActive" type="checkbox" defaultChecked className="h-4 w-4 rounded border-border" />
-                    Aktif
-                  </label>
-                  <Button type="submit" className="mt-2">
-                    Simpan
-                  </Button>
-                </form>
-              </SheetContent>
-            </Sheet>
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+              <BulkSendButton nims={users.filter(u => u.isActive && !!u.email).map(u => u.nim)} />
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button>Tambah User</Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="sm:max-w-md">
+                  <SheetHeader>
+                    <SheetTitle>Tambah User</SheetTitle>
+                    <SheetDescription>Masukkan data user baru.</SheetDescription>
+                  </SheetHeader>
+                  <form action={createUser} className="grid gap-3 p-4 pt-0">
+                    <label className="text-sm font-medium text-foreground">
+                      Nama
+                      <Input name="name" placeholder="Nama lengkap" required className="mt-1" />
+                    </label>
+                    <label className="text-sm font-medium text-foreground">
+                      NIM
+                      <Input name="nim" placeholder="0001" required className="mt-1" />
+                    </label>
+                    <label className="text-sm font-medium text-foreground">
+                      Email
+                      <Input name="email" type="email" placeholder="opsional" className="mt-1" />
+                    </label>
+                    <label className="text-sm font-medium text-foreground">
+                      Role
+                      <select name="role" className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm">
+                        {roles.map((role) => (
+                          <option key={role.value} value={role.value}>
+                            {role.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="text-sm font-medium text-foreground">
+                      Periode
+                      <select name="periodId" className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm">
+                        {periods.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="text-sm font-medium text-foreground">
+                      Divisi
+                      <select name="divisionId" className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm">
+                        <option value="">(Tanpa divisi)</option>
+                        {divisions.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="mt-2 flex items-center gap-2 text-sm text-foreground">
+                      <input name="isActive" type="checkbox" defaultChecked className="h-4 w-4 rounded border-border" />
+                      Aktif
+                    </label>
+                    <Button type="submit" className="mt-2">
+                      Simpan
+                    </Button>
+                  </form>
+                </SheetContent>
+              </Sheet>
+            </div>
           </div>
 
           <Card className="border-primary/10">
@@ -309,6 +309,7 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
                         </TableCell>
                         <TableCell className="w-[148px] pr-4">
                           <div className="flex items-center justify-end gap-2 whitespace-nowrap">
+                            <SingleSendButton nim={user.nim} disabled={!user.email || !user.isActive} />
                             <Sheet>
                               <SheetTrigger asChild>
                                 <Button variant="outline" size="icon" aria-label="Detail user">
@@ -418,10 +419,7 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
                                       ))}
                                     </select>
                                   </label>
-                                  <label className="text-sm font-medium text-foreground">
-                                    Password
-                                    <Input name="password" type="password" placeholder="Kosongkan jika tidak diubah" className="mt-1" />
-                                  </label>
+
                                   <label className="mt-2 flex items-center gap-2 text-sm text-foreground">
                                     <input name="isActive" type="checkbox" defaultChecked={user.isActive} className="h-4 w-4 rounded border-border" />
                                     Aktif

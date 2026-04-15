@@ -59,7 +59,7 @@ function computeProgress(event: EventWithProgress) {
     percent: Math.max(0, Math.min(100, percent)),
     completed: completedEvaluations,
     totalAssignments,
-  };
+  }; 
 }
 
 export default async function Page() {

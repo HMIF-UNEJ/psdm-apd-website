@@ -55,32 +55,39 @@ export async function POST(request: Request) {
     }
   }
 
-  const event = await prisma.$transaction(async (tx) => {
-    const created = await tx.evaluationEvent.create({
-      data: {
-        name,
-        type,
-        periodId,
-        prokerId: type === "PROKER" ? prokerId : null,
-        startDate,
-        endDate,
-        isOpen: isOpen ?? true,
-      },
+  try {
+    const event = await prisma.$transaction(async (tx) => {
+      const created = await tx.evaluationEvent.create({
+        data: {
+          name,
+          type,
+          periodId,
+          prokerId: type === "PROKER" ? prokerId : null,
+          startDate,
+          endDate,
+          isOpen: isOpen ?? true,
+        },
+      });
+
+      await tx.indicatorSnapshot.createMany({
+        data: indicatorIds.map((indicatorId) => ({ indicatorId, eventId: created.id })),
+      });
+
+      const assignmentCount = await generateAssignmentsForEvent(tx, created);
+      console.log(`[Events API] Event "${name}" created with ${assignmentCount} assignments`);
+
+      return created;
     });
 
-    await tx.indicatorSnapshot.createMany({
-      data: indicatorIds.map((indicatorId) => ({ indicatorId, eventId: created.id })),
+    const full = await prisma.evaluationEvent.findUnique({
+      where: { id: event.id },
+      include: { indicators: { include: { indicator: true } }, period: true, proker: true, _count: { select: { evaluations: true } } },
     });
 
-    await generateAssignmentsForEvent(tx, created);
-
-    return created;
-  });
-
-  const full = await prisma.evaluationEvent.findUnique({
-    where: { id: event.id },
-    include: { indicators: { include: { indicator: true } }, period: true, proker: true, _count: { select: { evaluations: true } } },
-  });
-
-  return NextResponse.json({ event: full }, { status: 201 });
+    return NextResponse.json({ event: full }, { status: 201 });
+  } catch (err) {
+    console.error("[Events API] Failed to create event:", err);
+    const message = err instanceof Error ? err.message : "Gagal membuat event";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
 }

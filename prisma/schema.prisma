@@ -12,6 +12,7 @@ enum Role {
   BPI
   KADIV
   ANGGOTA
+  KASUBDIV
 }
 
 enum EventType {
