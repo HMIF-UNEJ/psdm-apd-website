@@ -195,63 +195,44 @@ export default async function ResultsPage({ searchParams }: PageProps) {
           <Card className="overflow-hidden">
             <CardHeader>
               <CardTitle className="text-lg">Per anggota</CardTitle>
-              <p className="text-muted-foreground text-sm">Detail rata-rata per kategori dan indikator, termasuk feedback anonim.</p>
+              <p className="text-muted-foreground text-sm">Daftar anggota yang dinilai beserta overall rating. Klik untuk melihat detail.</p>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {report.results.length === 0 && <div className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-muted-foreground">Belum ada submission.</div>}
-
-              {report.results.map((res) => (
-                <div key={res.evaluateeId} className="border-border/80 rounded-xl border p-4 shadow-xs">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <div className="text-base font-semibold">{res.name}</div>
-                      <p className="text-muted-foreground text-sm">{res.division ?? "-"}</p>
-                      <p className="text-muted-foreground text-xs">Rater: {res.raterCount}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-muted-foreground text-xs">Overall</p>
-                      <p className="text-2xl font-semibold tabular-nums">{res.overallAvg.toFixed(2)}</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2 md:grid-cols-3">
-                    {Object.entries(res.categoryAvg).map(([cat, val]) => (
-                      <div key={cat} className="border-border/60 bg-card/70 rounded-lg border px-3 py-2">
-                        <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">{cat}</p>
-                        <p className="text-lg font-semibold tabular-nums">{val.toFixed(2)}</p>
-                      </div>
-                    ))}
-                    {Object.keys(res.categoryAvg).length === 0 && <div className="text-sm text-muted-foreground">Tidak ada kategori</div>}
-                  </div>
-
-                  <div className="mt-4">
-                    <p className="text-sm font-semibold">Per indikator</p>
-                    <div className="mt-2 grid gap-2 sm:grid-cols-2 md:grid-cols-3">
-                      {res.indicators.map((ind) => (
-                        <div key={ind.id + res.evaluateeId} className="border-border/60 rounded-lg border px-3 py-2 text-sm">
-                          <p className="font-medium">{ind.name}</p>
-                          <p className="text-muted-foreground text-xs">{ind.category}</p>
-                          <p className="text-sm font-semibold tabular-nums">{ind.avg.toFixed(2)}</p>
-                        </div>
+            <CardContent className="p-0">
+              {report.results.length === 0 ? (
+                <div className="px-4 py-6 text-center text-sm text-muted-foreground">Belum ada submission.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table className="min-w-full">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="pl-4">Nama</TableHead>
+                        <TableHead>Divisi</TableHead>
+                        <TableHead className="text-center">Penilai</TableHead>
+                        <TableHead className="text-right">Overall</TableHead>
+                        <TableHead className="pr-4 text-right">Aksi</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {report.results.map((res) => (
+                        <TableRow key={res.evaluateeId}>
+                          <TableCell className="pl-4 font-medium">{res.name}</TableCell>
+                          <TableCell className="text-muted-foreground">{res.division ?? "-"}</TableCell>
+                          <TableCell className="text-center tabular-nums">{res.raterCount}</TableCell>
+                          <TableCell className="text-right">
+                            <span className="text-base font-semibold tabular-nums">{res.overallAvg.toFixed(2)}</span>
+                            <span className="text-muted-foreground text-xs"> /5</span>
+                          </TableCell>
+                          <TableCell className="pr-4 text-right">
+                            <Button asChild variant="ghost" size="sm">
+                              <Link href={`/dashboard/results/${res.evaluateeId}?eventId=${selectedId}`}>Lihat detail →</Link>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
                       ))}
-                      {res.indicators.length === 0 && <div className="text-sm text-muted-foreground">Belum ada skor.</div>}
-                    </div>
-                  </div>
-
-                  {res.feedback.length > 0 && (
-                    <div className="mt-4">
-                      <p className="text-sm font-semibold">Feedback (anonim)</p>
-                      <ul className="mt-2 space-y-2 text-sm text-foreground">
-                        {res.feedback.map((fb, idx) => (
-                          <li key={idx} className="border-border/60 rounded-lg border px-3 py-2">
-                            {fb}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                    </TableBody>
+                  </Table>
                 </div>
-              ))}
+              )}
             </CardContent>
           </Card>
         </div>

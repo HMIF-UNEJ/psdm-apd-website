@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { evaluations, evaluationScores } from "@/lib/schema";
+import { evaluations } from "@/lib/schema";
 import { eq, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
-import { ListTodo, CheckCircle2, Clock, ArrowRight } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
+import { ListTodo, Clock, ArrowRight } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -14,27 +13,25 @@ export default async function ProgressPage() {
     const session = await getSession();
     if (!session) redirect("/");
 
-    const [allEvaluations, completedEventIds] = await Promise.all([
-        db.query.evaluations.findMany({
-            where: eq(evaluations.evaluatorId, session.userId),
-            orderBy: [desc(evaluations.createdAt)],
-            with: {
-                evaluatee: { with: { division: { columns: { name: true } } }, columns: { name: true, id: true } },
-                event: {
-                    with: {
-                        indicators: {
-                            with: { indicator: { columns: { name: true } } },
-                            columns: { id: true },
-                        },
-                        period: { columns: { name: true } },
-                        proker: { columns: { name: true } },
-                    },
-                    columns: { id: true, name: true, type: true, isOpen: true, startDate: true, endDate: true },
-                },
-                scores: { columns: { id: true } },
+    const allEvaluations = await db.query.evaluations.findMany({
+        where: eq(evaluations.evaluatorId, session.userId),
+        orderBy: [desc(evaluations.createdAt)],
+        with: {
+            evaluatee: {
+                columns: { name: true, id: true },
+                with: { division: { columns: { name: true } } },
             },
-        }),
-    ]);
+            event: {
+                columns: { id: true, name: true, type: true, isOpen: true, startDate: true, endDate: true },
+                with: {
+                    period: { columns: { name: true } },
+                    proker: { columns: { name: true } },
+                    indicators: { columns: { id: true } },
+                },
+            },
+            scores: { columns: { id: true } },
+        },
+    });
 
     const pending = allEvaluations.filter((ev) => ev.scores.length === 0);
     const completed = allEvaluations.filter((ev) => ev.scores.length > 0);

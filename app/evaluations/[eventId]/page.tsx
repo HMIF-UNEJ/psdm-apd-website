@@ -2,12 +2,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { evaluations, evaluationScores, evaluationEvents, indicatorSnapshots, users, divisions, periods, prokers } from "@/lib/schema";
-import { eq, and, desc, asc, notExists, exists, notInArray, inArray, sql } from "drizzle-orm";
+import { evaluations, evaluationScores, evaluationEvents } from "@/lib/schema";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { submitEvaluationSchema } from "@/lib/validation";
 import { EvaluationForm } from "@/components/evaluation-form";
-import { ArrowLeft, CheckCircle2, Clock, TrendingUp } from "lucide-react";
+import { ArrowLeft, CheckCircle2, TrendingUp } from "lucide-react";
 
 interface PageProps {
   params: Promise<{ eventId: string }>;
@@ -28,36 +28,53 @@ export default async function EventEvaluationsPage({ params, searchParams }: Pag
     const session = await getSession();
     if (!session) redirect("/");
 
-    const evaluationIds = formData.getAll("evaluationId").map(String);
+    const submittedEvalIds = formData.getAll("evaluationId").map(String);
 
-    if (evaluationIds.length === 0) {
+    if (submittedEvalIds.length === 0) {
       redirect(`/evaluations/${eventId}?error=Tidak%20ada%20evaluasi%20untuk%20disubmit`);
     }
 
-    const allPendingEvaluations = await db.query.evaluations.findMany({
-      where: and(
+    // Step 1: get all evaluation IDs for this evaluator + event
+    const allEvalsForAction = await db
+      .select({ id: evaluations.id })
+      .from(evaluations)
+      .where(and(
         eq(evaluations.evaluatorId, session.userId),
         eq(evaluations.eventId, eventId),
-        notExists(
-          db.select().from(evaluationScores).where(eq(evaluationScores.evaluationId, evaluations.id))
-        )
-      ),
-      with: {
-        event: { with: { indicators: true } },
-      },
-    });
+      ));
+    const allEvalActionIds = allEvalsForAction.map((e) => e.id);
 
-    if (evaluationIds.length !== allPendingEvaluations.length) {
+    // Step 2: find which already have scores
+    const scoredRowsAction = allEvalActionIds.length > 0
+      ? await db
+        .select({ evaluationId: evaluationScores.evaluationId })
+        .from(evaluationScores)
+        .where(inArray(evaluationScores.evaluationId, allEvalActionIds))
+      : [];
+    const scoredActionIds = new Set(scoredRowsAction.map((r) => r.evaluationId));
+    const pendingActionIds = allEvalActionIds.filter((id) => !scoredActionIds.has(id));
+
+    // Step 3: fetch pending evaluations with event indicators (max 2 levels deep)
+    const allPendingEvaluations = pendingActionIds.length > 0
+      ? await db.query.evaluations.findMany({
+        where: inArray(evaluations.id, pendingActionIds),
+        with: {
+          event: { with: { indicators: true } },
+        },
+      })
+      : [];
+
+    if (submittedEvalIds.length !== allPendingEvaluations.length) {
       redirect(
         `/evaluations/${eventId}?error=${encodeURIComponent(
-          `Anda harus mengisi semua ${allPendingEvaluations.length} penilaian sebelum submit. Baru terisi: ${evaluationIds.length}`
+          `Anda harus mengisi semua ${allPendingEvaluations.length} penilaian sebelum submit. Baru terisi: ${submittedEvalIds.length}`
         )}`
       );
     }
 
-    const pendingIds = new Set(allPendingEvaluations.map((e: any) => e.id));
-    for (const id of evaluationIds) {
-      if (!pendingIds.has(id)) {
+    const pendingIdsSet = new Set(allPendingEvaluations.map((e) => e.id));
+    for (const id of submittedEvalIds) {
+      if (!pendingIdsSet.has(id)) {
         redirect(`/evaluations/${eventId}?error=Evaluasi%20tidak%20ditemukan`);
       }
     }
@@ -125,44 +142,76 @@ export default async function EventEvaluationsPage({ params, searchParams }: Pag
     );
   }
 
-  const [eventData, pendingEvals, completedEvals] = await Promise.all([
+  // ── Page Data ──────────────────────────────────────────────────────────────
+
+  // Step 1: fetch event data + all evaluation IDs in parallel
+  const [eventData, allEvalRows] = await Promise.all([
     db.query.evaluationEvents.findFirst({
       where: eq(evaluationEvents.id, eventId),
       with: {
-        period: true,
-        proker: true,
-        indicators: { with: { indicator: true } },
+        period: { columns: { name: true } },
+        proker: { columns: { name: true } },
+        indicators: { with: { indicator: { columns: { name: true } } } },
       },
     }),
-    db.query.evaluations.findMany({
-      where: and(
+    db
+      .select({ id: evaluations.id })
+      .from(evaluations)
+      .where(and(
         eq(evaluations.evaluatorId, session.userId),
         eq(evaluations.eventId, eventId),
-        notExists(
-          db.select().from(evaluationScores).where(eq(evaluationScores.evaluationId, evaluations.id))
-        )
-      ),
-      with: {
-        evaluatee: { with: { division: true } },
-        event: { with: { indicators: { with: { indicator: true } } } },
-      },
-      orderBy: [desc(evaluations.createdAt)],
-    }),
-    db.query.evaluations.findMany({
-      where: and(
-        eq(evaluations.evaluatorId, session.userId),
-        eq(evaluations.eventId, eventId),
-        exists(
-          db.select().from(evaluationScores).where(eq(evaluationScores.evaluationId, evaluations.id))
-        )
-      ),
-      with: {
-        evaluatee: { with: { division: true } },
-        event: true,
-        scores: { with: { indicatorSnapshot: { with: { indicator: true } } } },
-      },
-      orderBy: [desc(evaluations.createdAt)],
-    }),
+      )),
+  ]);
+
+  const allEvalIds = allEvalRows.map((r) => r.id);
+
+  // Step 2: find completed IDs (those with scores)
+  const scoredRowsPage = allEvalIds.length > 0
+    ? await db
+      .select({ evaluationId: evaluationScores.evaluationId })
+      .from(evaluationScores)
+      .where(inArray(evaluationScores.evaluationId, allEvalIds))
+    : [];
+  const scoredIdsPage = new Set(scoredRowsPage.map((r) => r.evaluationId));
+  const pendingIdsPage = allEvalIds.filter((id) => !scoredIdsPage.has(id));
+  const completedIdsPage = allEvalIds.filter((id) => scoredIdsPage.has(id));
+
+  // Step 3: fetch pending evaluations (with evaluatee + event indicators, max 2-level deep)
+  //         fetch completed evaluations (with evaluatee + scores, max 2-level deep)
+  //         scores.indicatorSnapshot→indicator is ok because it's a separate query not mixing evaluation table
+  const [pendingEvals, completedEvals] = await Promise.all([
+    pendingIdsPage.length > 0
+      ? db.query.evaluations.findMany({
+        where: inArray(evaluations.id, pendingIdsPage),
+        with: {
+          evaluatee: {
+            columns: { name: true, id: true },
+            with: { division: { columns: { name: true } } },
+          },
+          event: {
+            columns: { isOpen: true },
+            with: { indicators: { columns: { id: true } } },
+          },
+        },
+        orderBy: [desc(evaluations.createdAt)],
+      })
+      : Promise.resolve([] as any[]),
+    completedIdsPage.length > 0
+      ? db.query.evaluations.findMany({
+        where: inArray(evaluations.id, completedIdsPage),
+        with: {
+          evaluatee: {
+            columns: { name: true, id: true },
+            with: { division: { columns: { name: true } } },
+          },
+          scores: {
+            columns: { id: true, score: true },
+            with: { indicatorSnapshot: { columns: { id: true }, with: { indicator: { columns: { name: true } } } } },
+          },
+        },
+        orderBy: [desc(evaluations.createdAt)],
+      })
+      : Promise.resolve([] as any[]),
   ]);
 
   if (!eventData) {
@@ -176,6 +225,11 @@ export default async function EventEvaluationsPage({ params, searchParams }: Pag
   const totalTasks = pendingEvals.length + completedEvals.length;
   const progressPercent = totalTasks > 0 ? Math.round((completedEvals.length / totalTasks) * 100) : 0;
 
+  // Build indicators map from eventData (already fetched — no re-fetch needed)
+  const indicatorsMap = new Map(
+    (eventData.indicators ?? []).map((snap: any) => [snap.id, snap.indicator?.name ?? snap.id])
+  );
+
   // Serialize pending data for client component
   const pendingForClient = pendingEvals.map((ev: any) => ({
     id: ev.id,
@@ -185,14 +239,15 @@ export default async function EventEvaluationsPage({ params, searchParams }: Pag
     },
     event: {
       isOpen: ev.event.isOpen,
-      indicators: ev.event.indicators.map((snap: any) => ({
+      indicators: (ev.event.indicators ?? []).map((snap: any) => ({
         id: snap.id,
-        indicator: { name: snap.indicator.name },
+        indicator: { name: indicatorsMap.get(snap.id) ?? snap.id },
       })),
     },
   }));
 
-  const formatDate = (d: Date) => new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric" }).format(d);
+  const formatDate = (d: Date) =>
+    new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric" }).format(d);
 
   return (
     <div className="space-y-5">
