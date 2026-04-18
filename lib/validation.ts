@@ -22,7 +22,7 @@ export const createPeriodSchema = z
     path: ["startYear"],
   });
 
-const roleEnum = z.enum(["ADMIN", "BPI", "KADIV", "ANGGOTA"]);
+const roleEnum = z.enum(["ADMIN", "BPI", "KADIV", "KASUBDIV", "ANGGOTA"]);
 
 export const createUserSchema = z.object({
   nim: z.string().min(3),

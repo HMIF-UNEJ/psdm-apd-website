@@ -25,6 +25,7 @@ export default async function EvaluationsLayout({ children }: { children: React.
         ADMIN: "Admin",
         BPI: "BPI",
         KADIV: "Kepala Divisi",
+        KASUBDIV: "Kepala Sub Divisi",
         ANGGOTA: "Anggota",
         SUPERADMIN: "Super Admin",
     };

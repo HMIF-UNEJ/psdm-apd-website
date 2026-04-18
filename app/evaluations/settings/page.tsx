@@ -23,6 +23,7 @@ export default async function EvalSettingsPage() {
         ADMIN: "Admin",
         BPI: "BPI",
         KADIV: "Kepala Divisi",
+        KASUBDIV: "Kepala Sub Divisi",
         ANGGOTA: "Anggota",
         SUPERADMIN: "Super Admin",
     };

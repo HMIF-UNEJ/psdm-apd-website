@@ -30,6 +30,7 @@ const roles = [
   { value: "ADMIN", label: "Admin" },
   { value: "BPI", label: "BPI" },
   { value: "KADIV", label: "Kepala Divisi" },
+  { value: "KASUBDIV", label: "Kepala Sub Divisi" },
   { value: "ANGGOTA", label: "Anggota" },
 ];
 

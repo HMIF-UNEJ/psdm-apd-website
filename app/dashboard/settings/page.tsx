@@ -38,6 +38,7 @@ export default async function SettingsPage() {
         ADMIN: "Admin",
         BPI: "BPI",
         KADIV: "Kepala Divisi",
+        KASUBDIV: "Kepala Sub Divisi",
         ANGGOTA: "Anggota",
         SUPERADMIN: "Super Admin",
     };
